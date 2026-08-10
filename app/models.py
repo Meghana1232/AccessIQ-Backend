@@ -3,6 +3,7 @@ from sqlalchemy.sql import func
 
 from app.database import Base
 
+from sqlalchemy import LargeBinary
 
 class User(Base):
     __tablename__ = "users"
@@ -16,6 +17,8 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
 
     face_image_path = Column(String, nullable=True)
+
+    face_encoding = Column(LargeBinary, nullable=True)
 
     face_registered = Column(Boolean, default=False)
 
