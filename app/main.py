@@ -3,7 +3,7 @@ from app.database import Base, engine
 from app import models
 
 # Import the router
-from app.routers import auth
+from app.routers import auth, face
 
 Base.metadata.create_all(bind=engine)
 
@@ -15,6 +15,7 @@ app = FastAPI(
 
 # Include the router
 app.include_router(auth.router)
+app.include_router(face.router)
 
 @app.get("/")
 def home():

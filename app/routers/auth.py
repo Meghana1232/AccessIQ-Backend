@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -37,7 +37,8 @@ def register(
     description="Authenticates an employee using Employee ID."
 )
 def login(
-    user: UserLogin,
+    employee_id: str = Form(...),
+    image: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    return login_user(db, user)
+    return login_user(db, employee_id, image)
