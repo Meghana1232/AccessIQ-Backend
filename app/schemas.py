@@ -1,5 +1,4 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
 
 # -----------------------------
 # User Registration
@@ -8,7 +7,6 @@ class UserCreate(BaseModel):
     employee_id: str
     full_name: str
     email: EmailStr
-    image: str
 
 
 # -----------------------------
@@ -16,8 +14,7 @@ class UserCreate(BaseModel):
 # -----------------------------
 class UserLogin(BaseModel):
     employee_id: str
-    image: str
-
+    
 
 # -----------------------------
 # Face Registration
