@@ -15,6 +15,8 @@ class User(Base):
 
     email = Column(String, unique=True, nullable=False)
 
+    face_image_path = Column(String, nullable=True)
+
     face_registered = Column(Boolean, default=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
