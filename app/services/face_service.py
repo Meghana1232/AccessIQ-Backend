@@ -9,9 +9,23 @@ import os
 import shutil
 import face_recognition
 import numpy as np
-
+import re
 
 def register_face(db: Session, user: UserCreate, image: UploadFile):
+    # Validate Employee ID format
+    if not re.fullmatch(r"GT-\d{3}", user.employee_id):
+        raise HTTPException(
+        status_code=400,
+        detail="Employee ID must be in GT-000 format. Example: GT-001."
+    )
+
+
+    # Validate Full Name
+    if not re.fullmatch(r"[A-Za-z]+(?: [A-Za-z]+)*", user.full_name.strip()):
+        raise HTTPException(
+        status_code=400,
+        detail="Full name must contain only letters and spaces."
+    )
 
     # Check if Employee ID already exists
     existing_user = db.query(models.User).filter(

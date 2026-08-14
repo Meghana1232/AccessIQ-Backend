@@ -1,11 +1,14 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.database import Base, engine
 from app import models
 
-# Import the router
 from app.routers import auth, face, capture
 
+
 Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI(
     title="AccessIQ API",
@@ -13,10 +16,22 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Include the router
+
+# CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Include routers
 app.include_router(auth.router)
 app.include_router(face.router)
 app.include_router(capture.router)
+
 
 @app.get("/")
 def home():
