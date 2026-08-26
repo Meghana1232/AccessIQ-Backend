@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, LargeBinary, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -12,9 +12,9 @@ class User(Base):
 
     employee_id = Column(String, unique=True, nullable=False)
 
-    full_name = Column(String, nullable=False)
+    full_name = Column(String, nullable=True)
 
-    email = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=True)
 
     face_image_path = Column(String, nullable=True)
 
@@ -22,8 +22,10 @@ class User(Base):
 
     face_registered = Column(Boolean, default=False)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
 class LoginHistory(Base):
     __tablename__ = "login_history"
 

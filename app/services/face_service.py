@@ -3,51 +3,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import models
-from app.schemas import UserCreate
 
 import os
 import shutil
 import face_recognition
 import numpy as np
-import re
-
-def register_face(db: Session, user: UserCreate, image: UploadFile):
-    # Validate Employee ID format
-    if not re.fullmatch(r"GT-\d{3}", user.employee_id):
-        raise HTTPException(
-        status_code=400,
-        detail="Employee ID must be in GT-000 format. Example: GT-001."
-    )
 
 
-    # Validate Full Name
-    if not re.fullmatch(r"[A-Za-z]+(?: [A-Za-z]+)*", user.full_name.strip()):
-        raise HTTPException(
-        status_code=400,
-        detail="Full name must contain only letters and spaces."
-    )
-
-    # Check if Employee ID already exists
-    existing_user = db.query(models.User).filter(
-        models.User.employee_id == user.employee_id
-    ).first()
-
-    if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Employee ID already exists."
-        )
-
-    # Check if Email already exists
-    existing_email = db.query(models.User).filter(
-        models.User.email == user.email
-    ).first()
-
-    if existing_email:
-        raise HTTPException(
-            status_code=400,
-            detail="Email already exists."
-        )
+def register_face(db: Session, image: UploadFile):
 
     # Validate image type
     allowed_types = ["image/jpeg", "image/png"]
@@ -71,17 +34,16 @@ def register_face(db: Session, user: UserCreate, image: UploadFile):
             detail="Image size must be less than 5 MB."
         )
 
-    # Create folder
-    os.makedirs("face_data", exist_ok=True)
+    # Create temporary folder
+    os.makedirs("temp", exist_ok=True)
 
-    # Image path
-    image_path = f"face_data/{user.employee_id}.jpg"
-
-    # Save image
-    with open(image_path, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
+    image_path = "temp/registration_face.jpg"
 
     try:
+        # Save uploaded image temporarily
+        with open(image_path, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+
         # Load image
         captured_image = face_recognition.load_image_file(image_path)
 
@@ -90,14 +52,14 @@ def register_face(db: Session, user: UserCreate, image: UploadFile):
             captured_image
         )
 
-        # No face
+        # No face detected
         if len(face_locations) == 0:
             raise HTTPException(
                 status_code=400,
                 detail="No face detected. Please capture your face properly."
             )
 
-        # Multiple faces
+        # Multiple faces detected
         if len(face_locations) > 1:
             raise HTTPException(
                 status_code=400,
@@ -109,9 +71,6 @@ def register_face(db: Session, user: UserCreate, image: UploadFile):
             captured_image,
             face_locations
         )[0]
-
-        # Convert encoding to bytes
-        encoding_bytes = captured_encoding.tobytes()
 
         # Check duplicate face
         registered_users = db.query(models.User).filter(
@@ -126,56 +85,86 @@ def register_face(db: Session, user: UserCreate, image: UploadFile):
             )
 
             distance = face_recognition.face_distance(
-               [stored_encoding],
-               captured_encoding
+                [stored_encoding],
+                captured_encoding
             )[0]
 
             print("Face distance:", distance)
 
-            match = distance < 0.45
-
-            if match:
+            if distance < 0.45:
                 raise HTTPException(
                     status_code=400,
-                    detail="User already registered."
-    )
-        # Create new user
+                    detail="This face is already registered."
+                )
+
+        # Get the next employee ID
+        last_user = db.query(models.User).order_by(
+            models.User.id.desc()
+        ).first()
+
+        if last_user and last_user.employee_id:
+            last_number = int(
+                last_user.employee_id.split("-")[1]
+            )
+            next_number = last_number + 1
+        else:
+            next_number = 1
+
+        generated_employee_id = f"GT-{next_number:03d}"
+
+        # Permanent face storage
+        os.makedirs("face_data", exist_ok=True)
+
+        permanent_image_path = (
+            f"face_data/{generated_employee_id}.jpg"
+        )
+
+        shutil.copy(
+            image_path,
+            permanent_image_path
+        )
+
+        # Create user automatically
         new_user = models.User(
-            employee_id=user.employee_id,
-            full_name=user.full_name,
-            email=user.email,
-            face_image_path=image_path,
-            face_encoding=encoding_bytes,
+            employee_id=generated_employee_id,
+            face_image_path=permanent_image_path,
+            face_encoding=captured_encoding.tobytes(),
             face_registered=True
         )
 
         # Save to PostgreSQL
         db.add(new_user)
-
-        try:
-            db.commit()
-            db.refresh(new_user)
-
-        except SQLAlchemyError:
-            db.rollback()
-
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to store face registration data."
-            )
+        db.commit()
+        db.refresh(new_user)
 
         return {
             "message": "Face registered successfully.",
-            "employee_id": new_user.employee_id,
-            "full_name": new_user.full_name
+            "employee_id": new_user.employee_id
         }
 
     except HTTPException:
-        # Remove image if registration fails
-        if os.path.exists(image_path):
-            os.remove(image_path)
+        db.rollback()
+        raise
+
+    except SQLAlchemyError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to store face registration data."
+        )
+
+    except Exception as e:
+        db.rollback()
+
+        print("Registration error:", str(e))
 
         raise HTTPException(
             status_code=500,
             detail="An error occurred while processing the face image."
         )
+
+    finally:
+        # Remove temporary image
+        if os.path.exists(image_path):
+            os.remove(image_path)
