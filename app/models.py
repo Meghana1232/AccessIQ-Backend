@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, LargeBinary, DateTime, ForeignKey
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -23,3 +23,30 @@ class User(Base):
     face_registered = Column(Boolean, default=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class LoginHistory(Base):
+    __tablename__ = "login_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    employee_id = Column(
+        String,
+        ForeignKey("users.employee_id"),
+        nullable=False
+    )
+
+    login_time = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    login_status = Column(
+        String,
+        nullable=False
+    )
+
+    login_method = Column(
+        String,
+        nullable=False
+    )

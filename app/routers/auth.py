@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -20,12 +20,11 @@ def auth_home():
 
 @router.post(
     "/login",
-    summary="Employee Login",
-    description="Authenticates an employee using Employee ID."
+    summary="Face Recognition Login",
+    description="Authenticates an employee using face recognition."
 )
 def login(
-    employee_id: str = Form(...),
     image: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    return login_user(db, employee_id, image)
+    return login_user(db, image)

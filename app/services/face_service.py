@@ -175,4 +175,7 @@ def register_face(db: Session, user: UserCreate, image: UploadFile):
         if os.path.exists(image_path):
             os.remove(image_path)
 
-        raise
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while processing the face image."
+        )
