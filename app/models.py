@@ -12,9 +12,9 @@ class User(Base):
 
     employee_id = Column(String, unique=True, nullable=False)
 
-    full_name = Column(String, nullable=True)
+    full_name = Column(String, nullable=False)
 
-    email = Column(String, unique=True, nullable=True)
+    email = Column(String, unique=True, nullable=False)
 
     face_image_path = Column(String, nullable=True)
 
@@ -50,5 +50,45 @@ class LoginHistory(Base):
 
     login_method = Column(
         String,
+        nullable=False
+    )
+
+
+class InboxMessage(Base):
+    __tablename__ = "inbox_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    sender_employee_id = Column(
+        String,
+        ForeignKey("users.employee_id"),
+        nullable=False
+    )
+
+    receiver_employee_id = Column(
+        String,
+        ForeignKey("users.employee_id"),
+        nullable=False
+    )
+
+    subject = Column(
+        String,
+        nullable=False
+    )
+
+    message = Column(
+        String,
+        nullable=False
+    )
+
+    is_read = Column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
         nullable=False
     )

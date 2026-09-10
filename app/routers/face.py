@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -24,7 +24,14 @@ def protected_face_route(
 
 @router.post("/register")
 def face_register(
+    full_name: str = Form(...),
+    email: str = Form(...),
     image: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    return register_face(db, image)
+    return register_face(
+        db=db,
+        full_name=full_name,
+        email=email,
+        image=image
+    )

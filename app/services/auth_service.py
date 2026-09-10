@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.models import User
 from app.utils.security import create_access_token
 from app.services.login_history_service import create_login_history
+from app.services.anti_spoofing_service import validate_face_input
 
 import os
 import shutil
@@ -38,31 +39,10 @@ def login_user(
         with open(image_path, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
 
-        # Load image
-        captured_image = face_recognition.load_image_file(image_path)
-
-        # Detect faces
-        face_locations = face_recognition.face_locations(
-            captured_image
+        # Anti-Spoofing and security validation
+        captured_image, face_locations, captured_encoding = validate_face_input(
+            image_path
         )
-
-        if len(face_locations) == 0:
-            raise HTTPException(
-                status_code=400,
-                detail="No face detected."
-            )
-
-        if len(face_locations) > 1:
-            raise HTTPException(
-                status_code=400,
-                detail="Multiple faces detected."
-            )
-
-        # Generate live face encoding
-        captured_encoding = face_recognition.face_encodings(
-            captured_image,
-            face_locations
-        )[0]
 
         # Get all registered employees
         registered_users = db.query(User).filter(

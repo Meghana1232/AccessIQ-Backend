@@ -1,18 +1,60 @@
-from fastapi import HTTPException, UploadFile
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
-
-from app import models
-
+import logging
 import os
 import shutil
+import uuid
+
 import face_recognition
 import numpy as np
+from fastapi import HTTPException, UploadFile
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app import models
+from app.services.anti_spoofing_service import validate_face_input
+
+logger = logging.getLogger(__name__)
 
 
-def register_face(db: Session, image: UploadFile):
+def register_face(db: Session, full_name: str, email: str, image: UploadFile):
 
+    # ------------------------------------------------
+    # Validate full name
+    # ------------------------------------------------
+    full_name = full_name.strip()
+
+    if not full_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Full name cannot be empty."
+        )
+
+    # ------------------------------------------------
+    # Validate email (basic format check)
+    # ------------------------------------------------
+    email = email.strip().lower()
+
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid email address."
+        )
+
+    # ------------------------------------------------
+    # Check email not already registered
+    # ------------------------------------------------
+    existing_email = db.query(models.User).filter(
+        models.User.email == email
+    ).first()
+
+    if existing_email:
+        raise HTTPException(
+            status_code=400,
+            detail="This email is already registered."
+        )
+
+    # ------------------------------------------------
     # Validate image type
+    # ------------------------------------------------
     allowed_types = ["image/jpeg", "image/png"]
 
     if image.content_type not in allowed_types:
@@ -21,7 +63,9 @@ def register_face(db: Session, image: UploadFile):
             detail="Only JPG, JPEG, or PNG images are allowed."
         )
 
+    # ------------------------------------------------
     # Validate image size
+    # ------------------------------------------------
     MAX_FILE_SIZE = 5 * 1024 * 1024
 
     image.file.seek(0, 2)
@@ -37,40 +81,19 @@ def register_face(db: Session, image: UploadFile):
     # Create temporary folder
     os.makedirs("temp", exist_ok=True)
 
-    image_path = "temp/registration_face.jpg"
+    # Unique filename per request, avoids collisions between
+    # concurrent registration requests
+    image_path = f"temp/register_{uuid.uuid4().hex}.jpg"
 
     try:
         # Save uploaded image temporarily
         with open(image_path, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
 
-        # Load image
-        captured_image = face_recognition.load_image_file(image_path)
-
-        # Detect faces
-        face_locations = face_recognition.face_locations(
-            captured_image
+        # Anti-Spoofing and security validation
+        captured_image, face_locations, captured_encoding = validate_face_input(
+            image_path
         )
-
-        # No face detected
-        if len(face_locations) == 0:
-            raise HTTPException(
-                status_code=400,
-                detail="No face detected. Please capture your face properly."
-            )
-
-        # Multiple faces detected
-        if len(face_locations) > 1:
-            raise HTTPException(
-                status_code=400,
-                detail="Multiple faces detected. Please capture only one face."
-            )
-
-        # Generate face encoding
-        captured_encoding = face_recognition.face_encodings(
-            captured_image,
-            face_locations
-        )[0]
 
         # Check duplicate face
         registered_users = db.query(models.User).filter(
@@ -89,7 +112,7 @@ def register_face(db: Session, image: UploadFile):
                 captured_encoding
             )[0]
 
-            print("Face distance:", distance)
+            logger.debug("Face distance vs %s: %s", registered_user.employee_id, distance)
 
             if distance < 0.45:
                 raise HTTPException(
@@ -124,9 +147,11 @@ def register_face(db: Session, image: UploadFile):
             permanent_image_path
         )
 
-        # Create user automatically
+        # Create user
         new_user = models.User(
             employee_id=generated_employee_id,
+            full_name=full_name,
+            email=email,
             face_image_path=permanent_image_path,
             face_encoding=captured_encoding.tobytes(),
             face_registered=True
@@ -139,7 +164,9 @@ def register_face(db: Session, image: UploadFile):
 
         return {
             "message": "Face registered successfully.",
-            "employee_id": new_user.employee_id
+            "employee_id": new_user.employee_id,
+            "full_name": new_user.full_name,
+            "email": new_user.email
         }
 
     except HTTPException:
@@ -157,7 +184,7 @@ def register_face(db: Session, image: UploadFile):
     except Exception as e:
         db.rollback()
 
-        print("Registration error:", str(e))
+        logger.exception("Registration error: %s", e)
 
         raise HTTPException(
             status_code=500,
