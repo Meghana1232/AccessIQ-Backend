@@ -40,7 +40,6 @@ def get_inbox(
     )
 
 
-# IMPORTANT: /sent must come before /{message_id}
 @router.get("/sent")
 def get_sent(
     db: Session = Depends(get_db),
