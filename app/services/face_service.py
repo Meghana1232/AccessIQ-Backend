@@ -31,7 +31,7 @@ def register_face(db: Session, full_name: str, email: str, image: UploadFile):
     # ------------------------------------------------
     # Validate email (basic format check)
     # ------------------------------------------------
-    email = email.strip().lower()
+    email = email.strip()
 
     if "@" not in email or "." not in email.split("@")[-1]:
         raise HTTPException(
