@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
+from app.schemas import FaceRegisterResponse
 
 from app.database import get_db
 from app.services.face_service import register_face
@@ -22,7 +23,7 @@ def protected_face_route(
     }
 
 
-@router.post("/register")
+@router.post("/register", response_model=FaceRegisterResponse)
 def face_register(
     full_name: str = Form(...),
     email: str = Form(...),
