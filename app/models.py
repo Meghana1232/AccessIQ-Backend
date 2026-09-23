@@ -92,3 +92,36 @@ class InboxMessage(Base):
         server_default=func.now(),
         nullable=False
     )
+
+class Alert(Base):
+    __tablename__ = "alerts"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    employee_id = Column(
+        String,
+        ForeignKey("users.employee_id"),
+        nullable=False
+    )
+
+    title = Column(
+        String,
+        nullable=False
+    )
+
+    message = Column(
+        String,
+        nullable=False
+    )
+
+    is_read = Column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
