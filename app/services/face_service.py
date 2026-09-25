@@ -11,85 +11,18 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.services.anti_spoofing_service import validate_face_input
+from app.utils.camera_utils import capture_frame_from_webcam
 
 logger = logging.getLogger(__name__)
 
 
-def register_face(db: Session, full_name: str, email: str, image: UploadFile):
-
-    # ------------------------------------------------
-    # Validate full name
-    # ------------------------------------------------
-    full_name = full_name.strip()
-
-    if not full_name:
-        raise HTTPException(
-            status_code=400,
-            detail="Full name cannot be empty."
-        )
-
-    # ------------------------------------------------
-    # Validate email (basic format check)
-    # ------------------------------------------------
-    email = email.strip()
-
-    if "@" not in email or "." not in email.split("@")[-1]:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid email address."
-        )
-
-    # ------------------------------------------------
-    # Check email not already registered
-    # ------------------------------------------------
-    existing_email = db.query(models.User).filter(
-        models.User.email == email
-    ).first()
-
-    if existing_email:
-        raise HTTPException(
-            status_code=400,
-            detail="This email is already registered."
-        )
-
-    # ------------------------------------------------
-    # Validate image type
-    # ------------------------------------------------
-    allowed_types = ["image/jpeg", "image/png"]
-
-    if image.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail="Only JPG, JPEG, or PNG images are allowed."
-        )
-
-    # ------------------------------------------------
-    # Validate image size
-    # ------------------------------------------------
-    MAX_FILE_SIZE = 5 * 1024 * 1024
-
-    image.file.seek(0, 2)
-    file_size = image.file.tell()
-    image.file.seek(0)
-
-    if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail="Image size must be less than 5 MB."
-        )
-
-    # Create temporary folder
-    os.makedirs("temp", exist_ok=True)
-
-    # Unique filename per request, avoids collisions between
-    # concurrent registration requests
-    image_path = f"temp/register_{uuid.uuid4().hex}.jpg"
+def _register_face_from_path(db: Session, full_name: str, email: str, image_path: str):
+    """
+    Shared registration logic once we already have an image saved on disk,
+    regardless of whether it came from an upload or a webcam capture.
+    """
 
     try:
-        # Save uploaded image temporarily
-        with open(image_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
-
         # Anti-Spoofing and security validation
         captured_image, face_locations, captured_encoding = validate_face_input(
             image_path
@@ -191,7 +124,130 @@ def register_face(db: Session, full_name: str, email: str, image: UploadFile):
             detail="An error occurred while processing the face image."
         )
 
+
+def register_face(db: Session, full_name: str, email: str, image: UploadFile):
+    """
+    Registration entrypoint for an uploaded image (existing flow).
+    """
+
+    # ------------------------------------------------
+    # Validate full name
+    # ------------------------------------------------
+    full_name = full_name.strip()
+
+    if not full_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Full name cannot be empty."
+        )
+
+    # ------------------------------------------------
+    # Validate email (basic format check)
+    # ------------------------------------------------
+    email = email.strip().lower()
+
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid email address."
+        )
+
+    # ------------------------------------------------
+    # Check email not already registered
+    # ------------------------------------------------
+    existing_email = db.query(models.User).filter(
+        models.User.email == email
+    ).first()
+
+    if existing_email:
+        raise HTTPException(
+            status_code=400,
+            detail="This email is already registered."
+        )
+
+    # ------------------------------------------------
+    # Validate image type
+    # ------------------------------------------------
+    allowed_types = ["image/jpeg", "image/png"]
+
+    if image.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPG, JPEG, or PNG images are allowed."
+        )
+
+    # ------------------------------------------------
+    # Validate image size
+    # ------------------------------------------------
+    MAX_FILE_SIZE = 5 * 1024 * 1024
+
+    image.file.seek(0, 2)
+    file_size = image.file.tell()
+    image.file.seek(0)
+
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="Image size must be less than 5 MB."
+        )
+
+    os.makedirs("temp", exist_ok=True)
+    image_path = f"temp/register_{uuid.uuid4().hex}.jpg"
+
+    try:
+        with open(image_path, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+
+        return _register_face_from_path(db, full_name, email, image_path)
+
     finally:
-        # Remove temporary image
+        if os.path.exists(image_path):
+            os.remove(image_path)
+
+
+def register_face_webcam(db: Session, full_name: str, email: str):
+    """
+    Registration entrypoint that captures the image directly from the
+    server's attached webcam instead of receiving an upload.
+
+    Only works when the backend runs on the same machine as the camera
+    (local development/demo). Will not work on a deployed remote server.
+    """
+
+    full_name = full_name.strip()
+
+    if not full_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Full name cannot be empty."
+        )
+
+    email = email.strip().lower()
+
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid email address."
+        )
+
+    existing_email = db.query(models.User).filter(
+        models.User.email == email
+    ).first()
+
+    if existing_email:
+        raise HTTPException(
+            status_code=400,
+            detail="This email is already registered."
+        )
+
+    os.makedirs("temp", exist_ok=True)
+    image_path = f"temp/register_webcam_{uuid.uuid4().hex}.jpg"
+
+    try:
+        capture_frame_from_webcam(image_path)
+
+        return _register_face_from_path(db, full_name, email, image_path)
+
+    finally:
         if os.path.exists(image_path):
             os.remove(image_path)

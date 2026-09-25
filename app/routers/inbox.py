@@ -4,6 +4,14 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.inbox_service import (create_message, get_received_messages, get_sent_messages, get_message, mark_message_as_read)
 from app.utils.security import get_current_employee
+from app.services.inbox_service import (
+    create_message,
+    get_received_messages,
+    get_sent_messages,
+    get_message,
+    mark_message_as_read,
+    delete_message
+)
 
 
 router = APIRouter(
@@ -71,6 +79,18 @@ def read_message(
     employee_id: str = Depends(get_current_employee)
 ):
     return mark_message_as_read(
+        db=db,
+        message_id=message_id,
+        employee_id=employee_id
+    )
+
+@router.delete("/{message_id}")
+def delete_inbox_message(
+    message_id: int,
+    db: Session = Depends(get_db),
+    employee_id: str = Depends(get_current_employee)
+):
+    return delete_message(
         db=db,
         message_id=message_id,
         employee_id=employee_id

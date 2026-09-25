@@ -27,6 +27,16 @@ class LoginResponse(BaseModel):
 
 
 # ---------------------------------------------------
+# Anti-Spoofing
+# ---------------------------------------------------
+class AntiSpoofingResponse(BaseModel):
+    message: str
+    face_detected: bool
+    image_width: int
+    image_height: int
+
+
+# ---------------------------------------------------
 # Inbox
 # ---------------------------------------------------
 class InboxMessageOut(BaseModel):

@@ -57,7 +57,11 @@ class LoginHistory(Base):
 class InboxMessage(Base):
     __tablename__ = "inbox_messages"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
     sender_employee_id = Column(
         String,
@@ -82,6 +86,18 @@ class InboxMessage(Base):
     )
 
     is_read = Column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+
+    is_deleted_by_sender = Column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+
+    is_deleted_by_receiver = Column(
         Boolean,
         default=False,
         nullable=False
