@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app import models
 
-from app.routers import alert, auth, face, login_history,anti_spoofing, inbox
+from app.routers import alert, auth, face, login_history,anti_spoofing, inbox, admin, settings
 
 
 Base.metadata.create_all(bind=engine)
@@ -34,6 +34,8 @@ app.include_router(anti_spoofing.router)
 app.include_router(login_history.router)
 app.include_router(inbox.router)
 app.include_router(alert.router)
+app.include_router(admin.router)
+app.include_router(settings.router)
 
 @app.get("/")
 def home():

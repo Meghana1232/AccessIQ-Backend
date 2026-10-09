@@ -22,122 +22,97 @@ class User(Base):
 
     face_registered = Column(Boolean, default=False)
 
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now()
-    )
+    role = Column(String, nullable=False, default="employee")
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 class LoginHistory(Base):
     __tablename__ = "login_history"
 
     id = Column(Integer, primary_key=True, index=True)
 
-    employee_id = Column(
-        String,
-        ForeignKey("users.employee_id"),
-        nullable=False
-    )
+    employee_id = Column(String, ForeignKey("users.employee_id"),nullable=False)
 
-    login_time = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
+    login_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    login_status = Column(
-        String,
-        nullable=False
-    )
+    login_status = Column(String, nullable=False)
 
-    login_method = Column(
-        String,
-        nullable=False
-    )
+    login_method = Column(String, nullable=False)
 
 
 class InboxMessage(Base):
     __tablename__ = "inbox_messages"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
+    id = Column(Integer, primary_key=True, index=True)
 
-    sender_employee_id = Column(
-        String,
-        ForeignKey("users.employee_id"),
-        nullable=False
-    )
+    sender_employee_id = Column(String, ForeignKey("users.employee_id"), nullable=False)
 
-    receiver_employee_id = Column(
-        String,
-        ForeignKey("users.employee_id"),
-        nullable=False
-    )
+    receiver_employee_id = Column(String, ForeignKey("users.employee_id"), nullable=False)
 
-    subject = Column(
-        String,
-        nullable=False
-    )
+    subject = Column(String, nullable=False)
 
-    message = Column(
-        String,
-        nullable=False
-    )
+    message = Column(String, nullable=False)
 
-    is_read = Column(
-        Boolean,
-        default=False,
-        nullable=False
-    )
+    is_read = Column(Boolean, default=False, nullable=False)
 
-    is_deleted_by_sender = Column(
-        Boolean,
-        default=False,
-        nullable=False
-    )
+    is_deleted_by_sender = Column(Boolean, default=False, nullable=False)
 
-    is_deleted_by_receiver = Column(
-        Boolean,
-        default=False,
-        nullable=False
-    )
+    is_deleted_by_receiver = Column(Boolean, default=False, nullable=False)
 
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(Integer, primary_key=True, index=True)
 
+    employee_id = Column(String, ForeignKey("users.employee_id"), nullable=False)
+
+    title = Column(String, nullable=False)
+
+    message = Column(String, nullable=False)
+
+    is_read = Column(Boolean, default=False, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+
     employee_id = Column(
         String,
         ForeignKey("users.employee_id"),
+        unique=True,
         nullable=False
     )
 
-    title = Column(
-        String,
-        nullable=False
-    )
-
-    message = Column(
-        String,
-        nullable=False
-    )
-
-    is_read = Column(
+    email_notifications = Column(
         Boolean,
-        default=False,
+        default=True,
+        nullable=False
+    )
+
+    security_alerts = Column(
+        Boolean,
+        default=True,
+        nullable=False
+    )
+
+    login_alerts = Column(
+        Boolean,
+        default=True,
         nullable=False
     )
 
     created_at = Column(
         DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
+        server_default=func.now()
     )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now()
+    )    

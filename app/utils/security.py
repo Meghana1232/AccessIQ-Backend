@@ -4,7 +4,11 @@ import jwt
 
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
 from dotenv import load_dotenv
+
+from app.database import get_db
+from app.models import User
 
 load_dotenv()
 
@@ -13,6 +17,9 @@ ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 )
+
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is not set.")
 
 security = HTTPBearer()
 
@@ -70,3 +77,24 @@ def get_current_employee(
 ):
     token = credentials.credentials
     return verify_token(token)
+
+
+def get_current_admin(
+    employee_id: str = Depends(get_current_employee),
+    db: Session = Depends(get_db)
+):
+    """
+    Same as get_current_employee, but additionally requires the
+    authenticated employee's role to be 'admin'. Use this instead of
+    get_current_employee on any route that should be admin-only.
+    """
+
+    user = db.query(User).filter(User.employee_id == employee_id).first()
+
+    if not user or user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required."
+        )
+
+    return employee_id
