@@ -170,6 +170,19 @@ def update_profile(
     data: ProfileUpdate
 ):
 
+    if (
+        data.full_name is None
+        and data.email is None
+        and data.date_of_birth is None
+        and data.phone_number is None
+        and data.gender is None
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="Provide at least one profile field to update"
+        )
+
     user = (
         db.query(User)
         .filter(
@@ -198,10 +211,21 @@ def update_profile(
 
     if data.email is not None:
 
+        # Same normalization and format rule as registration,
+        # so case variants can't slip past the duplicate check
+        email = data.email.strip().lower()
+
+        if "@" not in email or "." not in email.split("@")[-1]:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid email address"
+            )
+
         existing_user = (
             db.query(User)
             .filter(
-                User.email == data.email,
+                User.email == email,
                 User.employee_id != employee_id
             )
             .first()
@@ -214,7 +238,20 @@ def update_profile(
                 detail="Email already exists"
             )
 
-        user.email = data.email
+        user.email = email
+
+    if data.date_of_birth is not None:
+
+        user.date_of_birth = data.date_of_birth
+
+    if data.phone_number is not None:
+
+        # Blank string removes the phone number
+        user.phone_number = data.phone_number or None
+
+    if data.gender is not None:
+
+        user.gender = data.gender
 
     db.commit()
     db.refresh(user)

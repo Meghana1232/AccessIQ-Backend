@@ -1,7 +1,8 @@
-from datetime import datetime
-from typing import List, Optional
+import re
+from datetime import date, datetime
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 # ---------------------------------------------------
@@ -118,6 +119,7 @@ class BroadcastAlertResponse(BaseModel):
     message: str
     recipients: int
 
+
 # ---------------------------------------------------
 # Settings Module
 # ---------------------------------------------------
@@ -146,14 +148,63 @@ class SettingsResponse(BaseModel):
     login_alerts: bool
 
 
+# Allowed gender values. The frontend dropdown shows friendly labels
+# and sends one of these.
+GenderOption = Literal["male", "female", "other", "prefer_not_to_say"]
+
+
 class ProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     employee_id: str
     full_name: str
     email: str
+    date_of_birth: Optional[date] = None
+    phone_number: Optional[str] = None
+    gender: Optional[str] = None
 
 
 class ProfileUpdate(BaseModel):
+    # Every field is optional; only the ones sent are changed.
     full_name: Optional[str] = None
-    email: Optional[str] = None 
+    email: Optional[str] = None
+    date_of_birth: Optional[date] = None      # format: YYYY-MM-DD
+    phone_number: Optional[str] = None        # blank string clears it
+    gender: Optional[GenderOption] = None
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_date_of_birth(cls, value):
+        if value is None:
+            return value
+
+        if value > date.today():
+            raise ValueError("Date of birth cannot be in the future.")
+
+        if value.year < 1900:
+            raise ValueError("Date of birth is not valid.")
+
+        return value
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, value):
+        if value is None:
+            return value
+
+        value = value.strip()
+
+        # A blank value means "remove my phone number"
+        if value == "":
+            return value
+
+        # Allow spaces and dashes when typing, store digits only
+        cleaned = re.sub(r"[\s\-]", "", value)
+
+        if not re.fullmatch(r"\+?\d{7,15}", cleaned):
+            raise ValueError(
+                "Phone number must have 7 to 15 digits, "
+                "optionally starting with +."
+            )
+
+        return cleaned
